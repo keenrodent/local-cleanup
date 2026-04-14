@@ -9,5 +9,16 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	// D1 database for locations, signups, and completions.
+	// To create the production database:
+	//   npx wrangler d1 create local-cleanup-db
+	// Then replace the database_id below with the returned ID.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "local-cleanup-db",
+			"database_id": "LOCAL_DEV_PLACEHOLDER"
+		}
+	]
 }
