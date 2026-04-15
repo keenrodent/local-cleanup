@@ -18,7 +18,7 @@
 		{
 			"binding": "DB",
 			"database_name": "local-cleanup-db",
-			"database_id": "LOCAL_DEV_PLACEHOLDER"
+			"database_id": "52ba8fa6-7aac-4319-a540-8223d6a2e87e"
 		}
 	]
 }
