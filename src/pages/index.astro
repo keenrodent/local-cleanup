@@ -107,6 +107,7 @@ import Base from '../layouts/Base.astro';
   import { MAP_CENTER_LAT, MAP_CENTER_LNG, MAP_ZOOM } from 'astro:env/client';
 
   declare const L: any;
+  declare function showToast(message: string, type: string): void;
 
   const map = L.map('map-container', { tap: true }).setView([MAP_CENTER_LAT, MAP_CENTER_LNG], MAP_ZOOM);
 
@@ -276,7 +277,7 @@ import Base from '../layouts/Base.astro';
       window.location.reload();
     } else {
       const err = await res.json() as { error?: string };
-      alert(err.error || 'Something went wrong');
+      showToast(err.error || 'Something went wrong', 'error');
     }
   });
 </script>
