@@ -1,17 +1,221 @@
 ---
-
+import Base from '../layouts/Base.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Base>
+  <div id="map-container" class="w-full" style="height: calc(100vh - 8rem);"></div>
+  <div id="report-panel" class="hidden fixed bottom-0 left-0 right-0 bg-base-100 shadow-lg rounded-t-2xl p-6 z-[1000] max-h-[70vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-bold">Report a Cleanup Spot</h2>
+      <button id="close-report" class="btn btn-ghost btn-sm btn-circle" aria-label="Close">&#x2715;</button>
+    </div>
+    <form id="report-form" class="space-y-4">
+      <input type="hidden" id="report-lat" name="latitude" />
+      <input type="hidden" id="report-lng" name="longitude" />
+
+      <div class="form-control">
+        <label class="label" for="report-description">
+          <span class="label-text">What needs cleaning up?</span>
+        </label>
+        <textarea
+          id="report-description"
+          name="description"
+          class="textarea textarea-bordered w-full"
+          rows="2"
+          required
+          placeholder="Describe what you see..."
+        ></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="form-control">
+          <label class="label" for="report-location-type">
+            <span class="label-text">Location type</span>
+          </label>
+          <select id="report-location-type" name="location_type" class="select select-bordered w-full" required>
+            <option value="" disabled selected>Pick one</option>
+            <option value="roadside">Roadside</option>
+            <option value="park">Park</option>
+            <option value="lot">Lot</option>
+            <option value="playground">Playground</option>
+            <option value="waterway">Waterway</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="form-control">
+          <label class="label" for="report-cleanup-type">
+            <span class="label-text">Cleanup type</span>
+          </label>
+          <select id="report-cleanup-type" name="cleanup_type" class="select select-bordered w-full" required>
+            <option value="" disabled selected>Pick one</option>
+            <option value="litter">Litter</option>
+            <option value="leaf_removal">Leaf removal</option>
+            <option value="brush_clearing">Brush clearing</option>
+            <option value="weeding">Weeding</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="report-email">
+          <span class="label-text">Your email</span>
+        </label>
+        <input
+          type="email"
+          id="report-email"
+          name="reported_by"
+          class="input input-bordered w-full"
+          required
+          placeholder="you@example.com"
+        />
+      </div>
+
+      <button type="submit" class="btn btn-primary w-full">Submit Report</button>
+    </form>
+  </div>
+</Base>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  import { MAP_CENTER_LAT, MAP_CENTER_LNG, MAP_ZOOM } from 'astro:env/client';
+
+  declare const L: any;
+
+  const map = L.map('map-container').setView([MAP_CENTER_LAT, MAP_CENTER_LNG], MAP_ZOOM);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  }).addTo(map);
+
+  function pinColor(status: string): string {
+    switch (status) {
+      case 'reported': return '#ef4444';
+      case 'claimed': return '#eab308';
+      case 'cleaned': return '#22c55e';
+      default: return '#6b7280';
+    }
+  }
+
+  function createIcon(color: string) {
+    return L.divIcon({
+      className: '',
+      html: `<svg width="24" height="36" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="${color}"/>
+        <circle cx="12" cy="12" r="5" fill="white"/>
+      </svg>`,
+      iconSize: [24, 36],
+      iconAnchor: [12, 36],
+      popupAnchor: [0, -36],
+    });
+  }
+
+  function formatType(val: string): string {
+    return val.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  async function loadLocations() {
+    const res = await fetch('/api/locations');
+    const locations = await res.json() as any[];
+
+    for (const loc of locations) {
+      const icon = createIcon(pinColor(loc.status));
+      const marker = L.marker([loc.latitude, loc.longitude], { icon }).addTo(map);
+
+      const statusBadge = loc.status === 'reported'
+        ? '<span style="background:#fecaca;color:#991b1b;padding:1px 6px;border-radius:8px;font-size:0.75em;">Reported</span>'
+        : loc.status === 'claimed'
+          ? '<span style="background:#fef08a;color:#854d0e;padding:1px 6px;border-radius:8px;font-size:0.75em;">Claimed</span>'
+          : '<span style="background:#bbf7d0;color:#166534;padding:1px 6px;border-radius:8px;font-size:0.75em;">Cleaned</span>';
+
+      marker.bindPopup(`
+        <div style="min-width: 180px;">
+          <p style="margin: 0 0 4px; font-weight: 600;">${loc.description}</p>
+          <p style="margin: 0 0 4px; font-size: 0.85em; color: #666;">
+            ${formatType(loc.location_type)} &middot; ${formatType(loc.cleanup_type)}
+          </p>
+          ${statusBadge}
+          <br/><br/>
+          <a href="/location/${loc.id}" style="font-size: 0.85em;">View details &rarr;</a>
+        </div>
+      `);
+    }
+  }
+
+  loadLocations();
+
+  // Click-to-report
+  let reportMarker: any = null;
+  const reportPanel = document.getElementById('report-panel')!;
+  const reportForm = document.getElementById('report-form') as HTMLFormElement;
+  const closeBtn = document.getElementById('close-report')!;
+  const latInput = document.getElementById('report-lat') as HTMLInputElement;
+  const lngInput = document.getElementById('report-lng') as HTMLInputElement;
+
+  map.on('click', (e: any) => {
+    const { lat, lng } = e.latlng;
+
+    if (reportMarker) {
+      reportMarker.setLatLng([lat, lng]);
+    } else {
+      reportMarker = L.marker([lat, lng], {
+        icon: createIcon('#3b82f6'),
+        draggable: true,
+      }).addTo(map);
+
+      reportMarker.on('dragend', () => {
+        const pos = reportMarker.getLatLng();
+        latInput.value = pos.lat.toFixed(6);
+        lngInput.value = pos.lng.toFixed(6);
+      });
+    }
+
+    latInput.value = lat.toFixed(6);
+    lngInput.value = lng.toFixed(6);
+    reportPanel.classList.remove('hidden');
+  });
+
+  closeBtn.addEventListener('click', () => {
+    reportPanel.classList.add('hidden');
+    if (reportMarker) {
+      map.removeLayer(reportMarker);
+      reportMarker = null;
+    }
+  });
+
+  reportForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(reportForm);
+    const body = {
+      latitude: parseFloat(formData.get('latitude') as string),
+      longitude: parseFloat(formData.get('longitude') as string),
+      description: formData.get('description'),
+      location_type: formData.get('location_type'),
+      cleanup_type: formData.get('cleanup_type'),
+      reported_by: formData.get('reported_by'),
+    };
+
+    const res = await fetch('/api/locations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      reportForm.reset();
+      reportPanel.classList.add('hidden');
+      if (reportMarker) {
+        map.removeLayer(reportMarker);
+        reportMarker = null;
+      }
+      window.location.reload();
+    } else {
+      const err = await res.json() as { error?: string };
+      alert(err.error || 'Something went wrong');
+    }
+  });
+</script>

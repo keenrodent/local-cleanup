@@ -1,0 +1,207 @@
+---
+import Base from '../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+
+const location = await env.DB.prepare('SELECT * FROM locations WHERE id = ?').bind(id).first() as Record<string, unknown> | null;
+
+if (!location) {
+  return Astro.redirect('/');
+}
+
+const signups = await env.DB.prepare(
+  'SELECT * FROM signups WHERE location_id = ? ORDER BY signed_up_at DESC'
+).bind(id).all();
+
+const completion = await env.DB.prepare(
+  'SELECT * FROM completions WHERE location_id = ? ORDER BY completed_at DESC LIMIT 1'
+).bind(id).first();
+
+function formatType(val: string): string {
+  return val.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+}
+
+const statusColor = location.status === 'reported' ? 'badge-error'
+  : location.status === 'claimed' ? 'badge-warning'
+  : 'badge-success';
+---
+
+<Base title={location.description as string}>
+  <div class="max-w-2xl mx-auto p-4">
+    <a href="/" class="btn btn-ghost btn-sm mb-4">&larr; Back to map</a>
+
+    <div class="card bg-base-100 shadow-md">
+      <div class="card-body">
+        <div id="detail-map" class="w-full h-48 rounded-lg mb-4"></div>
+
+        <h1 class="card-title text-lg">{location.description}</h1>
+
+        <div class="flex flex-wrap gap-2 my-2">
+          <span class={`badge ${statusColor}`}>{formatType(location.status as string)}</span>
+          <span class="badge badge-outline">{formatType(location.location_type as string)}</span>
+          <span class="badge badge-outline">{formatType(location.cleanup_type as string)}</span>
+        </div>
+
+        <p class="text-sm text-base-content/60">
+          Reported {new Date(location.reported_at as string).toLocaleDateString()}
+        </p>
+
+        {/* Signups */}
+        {signups.results.length > 0 && (
+          <div class="mt-4">
+            <h2 class="font-semibold text-sm mb-2">Volunteers</h2>
+            <ul class="space-y-1">
+              {signups.results.map((s: any) => (
+                <li class="text-sm">
+                  {s.volunteer_name}
+                  {s.planned_date && <span class="text-base-content/60"> &middot; planned {new Date(s.planned_date).toLocaleDateString()}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Completion info */}
+        {completion && (
+          <div class="mt-4 p-3 bg-success/10 rounded-lg">
+            <p class="text-sm font-semibold text-success">Cleaned {new Date(completion.completed_at as string).toLocaleDateString()}</p>
+            {completion.notes && <p class="text-sm mt-1">{completion.notes}</p>}
+          </div>
+        )}
+
+        {/* Signup form -- show if reported or claimed */}
+        {(location.status === 'reported' || location.status === 'claimed') && (
+          <div class="mt-6 border-t pt-4">
+            <h2 class="font-semibold mb-3">Volunteer to Clean This Spot</h2>
+            <form id="signup-form" class="space-y-3">
+              <input type="hidden" name="location_id" value={location.id as number} />
+              <div class="form-control">
+                <input
+                  type="text"
+                  name="volunteer_name"
+                  class="input input-bordered w-full"
+                  required
+                  placeholder="Your name"
+                />
+              </div>
+              <div class="form-control">
+                <input
+                  type="email"
+                  name="volunteer_email"
+                  class="input input-bordered w-full"
+                  required
+                  placeholder="Your email"
+                />
+              </div>
+              <div class="form-control">
+                <input
+                  type="date"
+                  name="planned_date"
+                  class="input input-bordered w-full"
+                  placeholder="Planned date (optional)"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary w-full">Sign Up</button>
+            </form>
+          </div>
+        )}
+
+        {/* Mark complete -- show if claimed */}
+        {location.status === 'claimed' && (
+          <div class="mt-4 border-t pt-4">
+            <h2 class="font-semibold mb-3">Mark as Cleaned</h2>
+            <form id="complete-form" class="space-y-3">
+              <input type="hidden" name="location_id" value={location.id as number} />
+              <div class="form-control">
+                <textarea
+                  name="notes"
+                  class="textarea textarea-bordered w-full"
+                  rows="2"
+                  placeholder="Notes (optional) -- what did you do?"
+                ></textarea>
+              </div>
+              <button type="submit" class="btn btn-success w-full">Mark Complete</button>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</Base>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script is:inline define:vars={{ lat: location.latitude, lng: location.longitude, locationId: location.id }}>
+  const map = L.map('detail-map', {
+    zoomControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    touchZoom: false,
+  }).setView([lat, lng], 16);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap',
+    maxZoom: 19,
+  }).addTo(map);
+
+  L.marker([lat, lng]).addTo(map);
+
+  // Signup form
+  const signupForm = document.getElementById('signup-form');
+  if (signupForm) {
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(signupForm);
+      const body = {
+        location_id: parseInt(formData.get('location_id')),
+        volunteer_name: formData.get('volunteer_name'),
+        volunteer_email: formData.get('volunteer_email'),
+        planned_date: formData.get('planned_date') || undefined,
+      };
+
+      const res = await fetch('/api/signups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Something went wrong');
+      }
+    });
+  }
+
+  // Completion form
+  const completeForm = document.getElementById('complete-form');
+  if (completeForm) {
+    completeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(completeForm);
+      const body = {
+        location_id: parseInt(formData.get('location_id')),
+        notes: formData.get('notes') || undefined,
+      };
+
+      const res = await fetch('/api/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Something went wrong');
+      }
+    });
+  }
+</script>

@@ -1,0 +1,54 @@
+---
+import '../styles/global.css';
+import { CITY_NAME } from 'astro:env/client';
+
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+const pageTitle = title ? `${title} | ${CITY_NAME} Cleanup` : `${CITY_NAME} Cleanup`;
+---
+
+<html lang="en" data-theme="emerald">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={`Volunteer cleanup coordination for ${CITY_NAME}`} />
+    <title>{pageTitle}</title>
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <nav class="navbar bg-base-100 shadow-sm px-4">
+      <div class="flex-1">
+        <a href="/" class="text-xl font-bold">{CITY_NAME} Cleanup</a>
+      </div>
+      <div class="flex-none">
+        <a href="/" class="btn btn-ghost btn-sm">Map</a>
+      </div>
+    </nav>
+
+    <main class="flex-1">
+      <slot />
+    </main>
+
+    <footer class="footer footer-center bg-base-200 text-base-content p-6 text-sm">
+      <p class="max-w-xl">
+        This is a volunteer coordination tool. Volunteers participate at their
+        own discretion and assume responsibility for their own safety. This tool
+        does not constitute direction or supervision of volunteer activities.
+      </p>
+      <p>
+        <a
+          href="https://github.com/keenrodent/local-cleanup"
+          class="link link-hover"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open source
+        </a> &middot; MIT License
+      </p>
+    </footer>
+  </body>
+</html>

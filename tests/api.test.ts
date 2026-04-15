@@ -1,18 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { BASE_URL } from './setup';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function json(res: Response): Promise<any> {
+  return res.json();
+}
+
 describe('GET /api/locations', () => {
   it('returns seeded locations', async () => {
     const res = await fetch(`${BASE_URL}/api/locations`);
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await json(res);
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(8);
   });
 
   it('each location has expected fields', async () => {
     const res = await fetch(`${BASE_URL}/api/locations`);
-    const data = await res.json();
+    const data = await json(res);
     const loc = data[0];
     expect(loc).toHaveProperty('id');
     expect(loc).toHaveProperty('latitude');
@@ -41,7 +46,7 @@ describe('POST /api/locations', () => {
       }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.description).toBe('Test location from vitest');
     expect(data.status).toBe('reported');
   });
@@ -53,7 +58,7 @@ describe('POST /api/locations', () => {
       body: JSON.stringify({ latitude: 44.95 }),
     });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.error).toContain('Missing required fields');
   });
 
@@ -71,7 +76,7 @@ describe('POST /api/locations', () => {
       }),
     });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.error).toContain('Invalid location_type');
   });
 
@@ -89,7 +94,7 @@ describe('POST /api/locations', () => {
       }),
     });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.error).toContain('Invalid cleanup_type');
   });
 
@@ -107,7 +112,7 @@ describe('POST /api/locations', () => {
       }),
     });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.error).toContain('latitude');
   });
 
@@ -118,7 +123,7 @@ describe('POST /api/locations', () => {
       body: 'not json',
     });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.error).toBe('Invalid JSON');
   });
 });
@@ -128,7 +133,7 @@ describe('GET /api/locations/[id]', () => {
     // Location 4 has a signup in seed data
     const res = await fetch(`${BASE_URL}/api/locations/4`);
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.id).toBe(4);
     expect(data.signups).toBeInstanceOf(Array);
     expect(data.signups.length).toBeGreaterThan(0);
@@ -138,7 +143,7 @@ describe('GET /api/locations/[id]', () => {
   it('returns 404 for nonexistent location', async () => {
     const res = await fetch(`${BASE_URL}/api/locations/9999`);
     expect(res.status).toBe(404);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.error).toBe('Location not found');
   });
 });
@@ -157,11 +162,11 @@ describe('POST /api/signups', () => {
       }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.volunteer_name).toBe('Vitest Volunteer');
 
     // Verify status changed
-    const loc = await fetch(`${BASE_URL}/api/locations/2`).then((r) => r.json());
+    const loc = await fetch(`${BASE_URL}/api/locations/2`).then((r) => json(r));
     expect(loc.status).toBe('claimed');
   });
 
@@ -190,7 +195,7 @@ describe('POST /api/signups', () => {
       }),
     });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.error).toContain('already been cleaned');
   });
 
@@ -226,11 +231,11 @@ describe('POST /api/completions', () => {
       }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.notes).toBe('All clear!');
 
     // Verify status changed
-    const loc = await fetch(`${BASE_URL}/api/locations/3`).then((r) => r.json());
+    const loc = await fetch(`${BASE_URL}/api/locations/3`).then((r) => json(r));
     expect(loc.status).toBe('cleaned');
   });
 
@@ -242,7 +247,7 @@ describe('POST /api/completions', () => {
       body: JSON.stringify({ location_id: 8 }),
     });
     expect(res.status).toBe(400);
-    const data = await res.json();
+    const data = await json(res);
     expect(data.error).toContain('already been marked as cleaned');
   });
 
