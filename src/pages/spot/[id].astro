@@ -60,8 +60,8 @@ const doneCount = taskList.filter((t: any) => t.status === 'done').length;
 
         <h1 class="card-title text-lg">{spot.title}</h1>
 
-        <div class="flex flex-wrap gap-2 my-2">
-          <span class="badge badge-outline">{formatType(spot.location_type)}</span>
+        <div class="flex flex-wrap items-center gap-1.5 my-2">
+          <span class="badge badge-outline badge-sm">{formatType(spot.location_type)}</span>
           {openCount > 0 && <span class="badge badge-error badge-sm">{openCount} open</span>}
           {claimedCount > 0 && <span class="badge badge-warning badge-sm">{claimedCount} claimed</span>}
           {doneCount > 0 && <span class="badge badge-success badge-sm">{doneCount} done</span>}
