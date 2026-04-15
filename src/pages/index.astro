@@ -27,7 +27,7 @@ import Base from '../layouts/Base.astro';
         ></textarea>
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="form-control">
           <label class="label" for="report-location-type">
             <span class="label-text">Location type</span>
@@ -85,12 +85,15 @@ import Base from '../layouts/Base.astro';
 
   declare const L: any;
 
-  const map = L.map('map-container').setView([MAP_CENTER_LAT, MAP_CENTER_LNG], MAP_ZOOM);
+  const map = L.map('map-container', { tap: true }).setView([MAP_CENTER_LAT, MAP_CENTER_LNG], MAP_ZOOM);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19,
   }).addTo(map);
+
+  // Fix map size after layout settles (common mobile issue)
+  setTimeout(() => map.invalidateSize(), 100);
 
   function pinColor(status: string): string {
     switch (status) {
