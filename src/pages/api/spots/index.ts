@@ -10,7 +10,8 @@ export const GET: APIRoute = async () => {
       COUNT(t.id) as task_count,
       SUM(CASE WHEN t.status = 'open' THEN 1 ELSE 0 END) as open_count,
       SUM(CASE WHEN t.status = 'claimed' THEN 1 ELSE 0 END) as claimed_count,
-      SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) as done_count
+      SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) as done_count,
+      (SELECT GROUP_CONCAT(DISTINCT t2.cleanup_type) FROM tasks t2 WHERE t2.spot_id = s.id AND t2.status != 'done') as active_cleanup_types
     FROM spots s
     LEFT JOIN tasks t ON t.spot_id = s.id
     GROUP BY s.id

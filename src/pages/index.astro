@@ -173,11 +173,15 @@ import Base from '../layouts/Base.astro';
         : spot.pin_status === 'all_done' ? 'background:#bbf7d0;color:#166534'
         : 'background:#e5e7eb;color:#374151';
 
+      const cleanupTypes = spot.active_cleanup_types
+        ? spot.active_cleanup_types.split(',').map((t: string) => formatType(t)).join(', ')
+        : '';
+
       marker.bindPopup(`
         <div style="min-width: 180px;">
           <p style="margin: 0 0 4px; font-weight: 600;">${spot.title}</p>
           <p style="margin: 0 0 4px; font-size: 0.85em; color: #666;">
-            ${formatType(spot.location_type)}
+            ${formatType(spot.location_type)}${cleanupTypes ? ' &middot; ' + cleanupTypes : ''}
           </p>
           <span style="${statusColor};padding:1px 6px;border-radius:8px;font-size:0.75em;">${statusLabel}</span>
           <p style="margin: 4px 0 0; font-size: 0.8em; color: #888;">${summary}</p>
