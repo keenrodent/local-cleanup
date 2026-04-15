@@ -6,7 +6,7 @@ const VALID_CLEANUP_TYPES = ['litter', 'leaf_removal', 'brush_clearing', 'weedin
 
 export const GET: APIRoute = async () => {
   const results = await env.DB.prepare(
-    'SELECT id, latitude, longitude, description, location_type, cleanup_type, status, reported_by, reported_at FROM locations ORDER BY reported_at DESC'
+    'SELECT id, latitude, longitude, title, description, location_type, cleanup_type, status, reported_by, reported_at FROM locations ORDER BY reported_at DESC'
   ).all();
 
   return new Response(JSON.stringify(results.results), {
@@ -25,17 +25,18 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  const { latitude, longitude, description, location_type, cleanup_type, reported_by } = body as {
+  const { latitude, longitude, title, description, location_type, cleanup_type, reported_by } = body as {
     latitude: number;
     longitude: number;
-    description: string;
+    title: string;
+    description?: string;
     location_type: string;
     cleanup_type: string;
     reported_by: string;
   };
 
-  if (!latitude || !longitude || !description || !location_type || !cleanup_type || !reported_by) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: latitude, longitude, description, location_type, cleanup_type, reported_by' }), {
+  if (!latitude || !longitude || !title || !location_type || !cleanup_type || !reported_by) {
+    return new Response(JSON.stringify({ error: 'Missing required fields: latitude, longitude, title, location_type, cleanup_type, reported_by' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -70,9 +71,9 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const result = await env.DB.prepare(
-    'INSERT INTO locations (latitude, longitude, description, location_type, cleanup_type, reported_by) VALUES (?, ?, ?, ?, ?, ?) RETURNING *'
+    'INSERT INTO locations (latitude, longitude, title, description, location_type, cleanup_type, reported_by) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *'
   )
-    .bind(latitude, longitude, description, location_type, cleanup_type, reported_by)
+    .bind(latitude, longitude, title, description ?? null, location_type, cleanup_type, reported_by)
     .first();
 
   return new Response(JSON.stringify(result), {

@@ -4,10 +4,11 @@ import { CITY_NAME } from 'astro:env/client';
 
 interface Props {
   title?: string;
+  fillHeight?: boolean;
 }
 
-const { title } = Astro.props;
-const pageTitle = title ? `${title} | ${CITY_NAME} Cleanup` : `${CITY_NAME} Cleanup`;
+const { title, fillHeight = false } = Astro.props;
+const pageTitle = title ? `${title} | ${CITY_NAME} Cleanup Spots` : `${CITY_NAME} Cleanup Spots`;
 ---
 
 <html lang="en" data-theme="emerald">
@@ -19,36 +20,36 @@ const pageTitle = title ? `${title} | ${CITY_NAME} Cleanup` : `${CITY_NAME} Clea
     <meta name="description" content={`Volunteer cleanup coordination for ${CITY_NAME}`} />
     <title>{pageTitle}</title>
   </head>
-  <body class="min-h-screen flex flex-col">
-    <nav class="navbar bg-base-100 shadow-sm px-4">
-      <div class="flex-1">
-        <a href="/" class="text-xl font-bold">{CITY_NAME} Cleanup</a>
+  <body class="h-screen flex flex-col overflow-hidden">
+    <nav class="navbar bg-base-100 shadow-sm px-4 flex-shrink-0">
+      <div class="flex-1 justify-center">
+        <a href="/" class="text-xl font-bold">{CITY_NAME} Cleanup Spots</a>
       </div>
       <div class="flex-none">
-        <a href="/" class="btn btn-ghost btn-sm">Map</a>
+        <div class="dropdown dropdown-end">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle" aria-label="Menu">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </div>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1001] w-52 p-2 shadow">
+            <li><a href="/">Map</a></li>
+            <li>
+              <a href="https://github.com/keenrodent/local-cleanup" target="_blank" rel="noopener noreferrer">
+                About &middot; Open Source
+              </a>
+            </li>
+          </ul>
+        </div>
       </div>
     </nav>
 
-    <main class="flex-1">
+    <main class:list={["flex-1 min-h-0", { "overflow-y-auto": !fillHeight }]}>
       <slot />
     </main>
 
-    <footer class="footer footer-center bg-base-200 text-base-content p-6 text-sm">
-      <p class="max-w-xl">
-        This is a volunteer coordination tool. Volunteers participate at their
-        own discretion and assume responsibility for their own safety. This tool
-        does not constitute direction or supervision of volunteer activities.
-      </p>
-      <p>
-        <a
-          href="https://github.com/keenrodent/local-cleanup"
-          class="link link-hover"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Open source
-        </a> &middot; MIT License
-      </p>
+    <footer class="bg-base-200 text-base-content/60 text-center text-xs px-4 py-2 flex-shrink-0">
+      Volunteer coordination tool. Participants act at their own discretion and assume responsibility for their own safety.
     </footer>
   </body>
 </html>

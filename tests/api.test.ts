@@ -22,6 +22,7 @@ describe('GET /api/locations', () => {
     expect(loc).toHaveProperty('id');
     expect(loc).toHaveProperty('latitude');
     expect(loc).toHaveProperty('longitude');
+    expect(loc).toHaveProperty('title');
     expect(loc).toHaveProperty('description');
     expect(loc).toHaveProperty('location_type');
     expect(loc).toHaveProperty('cleanup_type');
@@ -39,6 +40,7 @@ describe('POST /api/locations', () => {
       body: JSON.stringify({
         latitude: 44.95,
         longitude: -93.10,
+        title: 'Test spot from vitest',
         description: 'Test location from vitest',
         location_type: 'park',
         cleanup_type: 'litter',
@@ -47,7 +49,7 @@ describe('POST /api/locations', () => {
     });
     expect(res.status).toBe(201);
     const data = await json(res);
-    expect(data.description).toBe('Test location from vitest');
+    expect(data.title).toBe('Test spot from vitest');
     expect(data.status).toBe('reported');
   });
 
@@ -69,7 +71,7 @@ describe('POST /api/locations', () => {
       body: JSON.stringify({
         latitude: 44.95,
         longitude: -93.10,
-        description: 'Bad type',
+        title: 'Bad type test',
         location_type: 'moon_base',
         cleanup_type: 'litter',
         reported_by: 'test@vitest.com',
@@ -87,7 +89,7 @@ describe('POST /api/locations', () => {
       body: JSON.stringify({
         latitude: 44.95,
         longitude: -93.10,
-        description: 'Bad cleanup',
+        title: 'Bad cleanup test',
         location_type: 'park',
         cleanup_type: 'nuclear_decontamination',
         reported_by: 'test@vitest.com',
@@ -105,7 +107,7 @@ describe('POST /api/locations', () => {
       body: JSON.stringify({
         latitude: 999,
         longitude: -93.10,
-        description: 'Bad coords',
+        title: 'Bad coords test',
         location_type: 'park',
         cleanup_type: 'litter',
         reported_by: 'test@vitest.com',

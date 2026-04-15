@@ -2,8 +2,8 @@
 import Base from '../layouts/Base.astro';
 ---
 
-<Base>
-  <div id="map-container" class="w-full" style="height: calc(100vh - 8rem);"></div>
+<Base fillHeight>
+  <div id="map-container" class="w-full h-full"></div>
   <div id="report-panel" class="hidden fixed bottom-0 left-0 right-0 bg-base-100 shadow-lg rounded-t-2xl p-6 z-[1000] max-h-[70vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-lg font-bold">Report a Cleanup Spot</h2>
@@ -14,16 +14,29 @@ import Base from '../layouts/Base.astro';
       <input type="hidden" id="report-lng" name="longitude" />
 
       <div class="form-control">
+        <label class="label" for="report-title">
+          <span class="label-text">Name this spot</span>
+        </label>
+        <input
+          type="text"
+          id="report-title"
+          name="title"
+          class="input input-bordered w-full"
+          required
+          placeholder="e.g. Rice Park sidewalk"
+        />
+      </div>
+
+      <div class="form-control">
         <label class="label" for="report-description">
-          <span class="label-text">What needs cleaning up?</span>
+          <span class="label-text">What needs doing? (optional)</span>
         </label>
         <textarea
           id="report-description"
           name="description"
           class="textarea textarea-bordered w-full"
-          rows="2"
-          required
-          placeholder="Describe what you see..."
+          rows="3"
+          placeholder="List what you noticed -- litter along the path, weeds in the cracks, branches down, etc."
         ></textarea>
       </div>
 
@@ -137,7 +150,7 @@ import Base from '../layouts/Base.astro';
 
       marker.bindPopup(`
         <div style="min-width: 180px;">
-          <p style="margin: 0 0 4px; font-weight: 600;">${loc.description}</p>
+          <p style="margin: 0 0 4px; font-weight: 600;">${loc.title}</p>
           <p style="margin: 0 0 4px; font-size: 0.85em; color: #666;">
             ${formatType(loc.location_type)} &middot; ${formatType(loc.cleanup_type)}
           </p>
@@ -196,7 +209,8 @@ import Base from '../layouts/Base.astro';
     const body = {
       latitude: parseFloat(formData.get('latitude') as string),
       longitude: parseFloat(formData.get('longitude') as string),
-      description: formData.get('description'),
+      title: formData.get('title'),
+      description: formData.get('description') || undefined,
       location_type: formData.get('location_type'),
       cleanup_type: formData.get('cleanup_type'),
       reported_by: formData.get('reported_by'),

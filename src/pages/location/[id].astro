@@ -29,7 +29,7 @@ const statusColor = location.status === 'reported' ? 'badge-error'
   : 'badge-success';
 ---
 
-<Base title={location.description as string}>
+<Base title={location.title as string}>
   <div class="max-w-2xl mx-auto p-4">
     <a href="/" class="btn btn-ghost btn-sm mb-4">&larr; Back to map</a>
 
@@ -37,7 +37,7 @@ const statusColor = location.status === 'reported' ? 'badge-error'
       <div class="card-body">
         <div id="detail-map" class="w-full h-48 rounded-lg mb-4"></div>
 
-        <h1 class="card-title text-lg">{location.description}</h1>
+        <h1 class="card-title text-lg">{location.title}</h1>
 
         <div class="flex flex-wrap gap-2 my-2">
           <span class={`badge ${statusColor}`}>{formatType(location.status as string)}</span>
@@ -48,6 +48,10 @@ const statusColor = location.status === 'reported' ? 'badge-error'
         <p class="text-sm text-base-content/60">
           Reported {new Date(location.reported_at as string).toLocaleDateString()}
         </p>
+
+        {location.description && (
+          <p class="mt-2 text-sm whitespace-pre-line">{location.description}</p>
+        )}
 
         {/* Signups */}
         {signups.results.length > 0 && (
