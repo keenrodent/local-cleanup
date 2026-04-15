@@ -1,43 +1,113 @@
-# Astro Starter Kit: Minimal
+# local-cleanup
+
+Volunteer coordination app for neighborhood cleanup. Community members
+report spots that need attention, sign up to clean them, and track
+progress on a map.
+
+Built for Saint Paul, MN. Easily deployable for any city or neighborhood.
+
+## How it works
+
+1. **See the map** -- spots that need cleanup show as pins
+2. **Report a spot** -- click the map to drop a pin, name the spot, describe what needs doing
+3. **Add tasks** -- each spot has a task list (litter pickup, weeding, brush clearing, etc.)
+4. **Claim a task** -- sign up with your name and email
+5. **Mark it done** -- complete tasks as you go; the pin turns green when everything is done
+
+Red pins need help. Yellow pins are in progress. Green pins are all done.
+
+## Deploy your own
+
+You need a free [Cloudflare](https://cloudflare.com) account. No credit
+card required.
+
+### 1. Fork and clone
+
+Fork this repo on GitHub, then clone it:
 
 ```sh
-npm create astro@latest -- --template minimal
+git clone https://github.com/YOUR-USERNAME/local-cleanup.git
+cd local-cleanup
+npm install
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+### 2. Configure your city
 
-## 🚀 Project Structure
+Copy the example environment file and edit it:
 
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+```sh
+cp .env.example .env
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Open `.env` and set your city's details:
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+```
+CITY_NAME="Your City, ST"
+MAP_CENTER_LAT=44.9537
+MAP_CENTER_LNG=-93.0900
+MAP_ZOOM=13
+```
 
-Any static assets, like images, can be placed in the `public/` directory.
+**To find your coordinates:** open Google Maps, right-click the center
+of your city or neighborhood, and click the coordinates that appear.
+They'll be copied to your clipboard.
 
-## 🧞 Commands
+### 3. Create the database
 
-All commands are run from the root of the project, from a terminal:
+Install the Wrangler CLI (included in dev dependencies), then create
+your D1 database:
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+```sh
+npx wrangler login
+npx wrangler d1 create local-cleanup-db
+```
 
-## 👀 Want to learn more?
+Wrangler will output a database ID. Open `wrangler.jsonc` and replace
+`LOCAL_DEV_PLACEHOLDER` with your actual database ID.
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Load the schema:
+
+```sh
+npx wrangler d1 execute local-cleanup-db --remote --file=db/schema.sql
+```
+
+### 4. Deploy
+
+Connect your GitHub repo to Cloudflare Pages:
+
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com) > Workers & Pages > Create
+2. Select "Connect to Git" and choose your forked repo
+3. Set build command: `npm run build`
+4. Set build output directory: `dist`
+5. Add environment variables: `CITY_NAME`, `MAP_CENTER_LAT`, `MAP_CENTER_LNG`, `MAP_ZOOM`
+6. Under Settings > Functions > D1 database bindings, add a binding with variable name `DB` pointing to your `local-cleanup-db` database
+7. Deploy
+
+Your site will be live at `your-project.pages.dev`. You can add a custom
+domain in the Cloudflare Pages settings.
+
+## Local development
+
+```sh
+cp .env.example .env         # configure your city
+npx wrangler d1 execute local-cleanup-db --local --file=db/schema.sql
+npx wrangler d1 execute local-cleanup-db --local --file=db/seed.sql  # optional sample data
+npm run dev                  # starts at http://localhost:4321
+```
+
+## Running tests
+
+```sh
+npm test
+```
+
+## Tech stack
+
+- [Astro](https://astro.build) + [Tailwind CSS](https://tailwindcss.com) + [DaisyUI](https://daisyui.com)
+- [Leaflet](https://leafletjs.com) + [OpenStreetMap](https://www.openstreetmap.org) (free, no API key)
+- [Cloudflare D1](https://developers.cloudflare.com/d1/) (SQLite database)
+- [Cloudflare Pages](https://pages.cloudflare.com) (hosting + serverless functions)
+
+## License
+
+MIT
