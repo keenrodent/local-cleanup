@@ -13,7 +13,7 @@ if (!spot) {
 }
 
 const tasksResult = await env.DB.prepare(
-  "SELECT * FROM tasks WHERE spot_id = ? ORDER BY CASE status WHEN 'open' THEN 0 WHEN 'claimed' THEN 1 WHEN 'done' THEN 2 END, added_at ASC"
+  "SELECT * FROM tasks WHERE spot_id = ? ORDER BY CASE status WHEN 'open' THEN 0 WHEN 'claimed' THEN 1 WHEN 'done' THEN 2 END, added_at DESC"
 ).bind(id).all();
 
 // Fetch signups for all tasks

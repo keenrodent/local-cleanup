@@ -18,7 +18,7 @@ export const GET: APIRoute = async ({ params }) => {
   }
 
   const tasks = await env.DB.prepare(
-    'SELECT * FROM tasks WHERE spot_id = ? ORDER BY added_at ASC'
+    'SELECT * FROM tasks WHERE spot_id = ? ORDER BY added_at DESC'
   ).bind(id).all();
 
   // Fetch signups for all tasks in this spot
