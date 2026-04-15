@@ -1,40 +1,39 @@
--- local-cleanup D1 schema
+-- local-cleanup D1 schema (spots + tasks model)
 
-CREATE TABLE IF NOT EXISTS locations (
+CREATE TABLE IF NOT EXISTS spots (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   latitude REAL NOT NULL,
   longitude REAL NOT NULL,
   title TEXT NOT NULL,
-  description TEXT,
   location_type TEXT NOT NULL CHECK (location_type IN ('roadside', 'park', 'lot', 'playground', 'waterway', 'other')),
-  cleanup_type TEXT NOT NULL CHECK (cleanup_type IN ('litter', 'leaf_removal', 'brush_clearing', 'weeding', 'other')),
-  reported_by TEXT NOT NULL,
-  reported_at TEXT NOT NULL DEFAULT (datetime('now')),
-  status TEXT NOT NULL DEFAULT 'reported' CHECK (status IN ('reported', 'claimed', 'cleaned')),
-  photo_url TEXT
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_locations_status ON locations (status);
-CREATE INDEX IF NOT EXISTS idx_locations_reported_at ON locations (reported_at);
+CREATE INDEX IF NOT EXISTS idx_spots_created_at ON spots (created_at);
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  spot_id INTEGER NOT NULL REFERENCES spots(id),
+  description TEXT,
+  cleanup_type TEXT NOT NULL CHECK (cleanup_type IN ('litter', 'leaf_removal', 'brush_clearing', 'weeding', 'other')),
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'claimed', 'done')),
+  added_by TEXT NOT NULL,
+  added_at TEXT NOT NULL DEFAULT (datetime('now')),
+  completed_at TEXT,
+  completion_notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_spot_id ON tasks (spot_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks (status);
 
 CREATE TABLE IF NOT EXISTS signups (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  location_id INTEGER NOT NULL REFERENCES locations(id),
+  task_id INTEGER NOT NULL REFERENCES tasks(id),
   volunteer_name TEXT NOT NULL,
   volunteer_email TEXT NOT NULL,
   signed_up_at TEXT NOT NULL DEFAULT (datetime('now')),
   planned_date TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_signups_location_id ON signups (location_id);
-
-CREATE TABLE IF NOT EXISTS completions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  location_id INTEGER NOT NULL REFERENCES locations(id),
-  signup_id INTEGER REFERENCES signups(id),
-  completed_at TEXT NOT NULL DEFAULT (datetime('now')),
-  photo_url TEXT,
-  notes TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_completions_location_id ON completions (location_id);
+CREATE INDEX IF NOT EXISTS idx_signups_task_id ON signups (task_id);

@@ -19,7 +19,7 @@ async function waitForServer(url: string, timeoutMs = 30000): Promise<void> {
 
 beforeAll(async () => {
   // Reset and seed the local D1 database
-  execSync('npx wrangler d1 execute local-cleanup-db --local --command="DROP TABLE IF EXISTS completions; DROP TABLE IF EXISTS signups; DROP TABLE IF EXISTS locations;"', { stdio: 'pipe' });
+  execSync('npx wrangler d1 execute local-cleanup-db --local --command="DROP TABLE IF EXISTS signups; DROP TABLE IF EXISTS completions; DROP TABLE IF EXISTS tasks; DROP TABLE IF EXISTS locations; DROP TABLE IF EXISTS spots;"', { stdio: 'pipe' });
   execSync('npx wrangler d1 execute local-cleanup-db --local --file=db/schema.sql', { stdio: 'pipe' });
   execSync('npx wrangler d1 execute local-cleanup-db --local --file=db/seed.sql', { stdio: 'pipe' });
 

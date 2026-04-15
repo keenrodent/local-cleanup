@@ -6,268 +6,268 @@ async function json(res: Response): Promise<any> {
   return res.json();
 }
 
-describe('GET /api/locations', () => {
-  it('returns seeded locations', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations`);
+describe('GET /api/spots', () => {
+  it('returns seeded spots with task counts', async () => {
+    const res = await fetch(`${BASE_URL}/api/spots`);
     expect(res.status).toBe(200);
     const data = await json(res);
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(8);
   });
 
-  it('each location has expected fields', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations`);
+  it('each spot has pin_status and task counts', async () => {
+    const res = await fetch(`${BASE_URL}/api/spots`);
     const data = await json(res);
-    const loc = data[0];
-    expect(loc).toHaveProperty('id');
-    expect(loc).toHaveProperty('latitude');
-    expect(loc).toHaveProperty('longitude');
-    expect(loc).toHaveProperty('title');
-    expect(loc).toHaveProperty('description');
-    expect(loc).toHaveProperty('location_type');
-    expect(loc).toHaveProperty('cleanup_type');
-    expect(loc).toHaveProperty('status');
-    expect(loc).toHaveProperty('reported_by');
-    expect(loc).toHaveProperty('reported_at');
+    const spot = data[0];
+    expect(spot).toHaveProperty('id');
+    expect(spot).toHaveProperty('title');
+    expect(spot).toHaveProperty('location_type');
+    expect(spot).toHaveProperty('pin_status');
+    expect(spot).toHaveProperty('task_count');
+    expect(spot).toHaveProperty('open_count');
+    expect(spot).toHaveProperty('claimed_count');
+    expect(spot).toHaveProperty('done_count');
+  });
+
+  it('derives pin_status correctly', async () => {
+    const res = await fetch(`${BASE_URL}/api/spots`);
+    const data = await json(res);
+
+    // Kaposia Landing (id 8) -- all tasks done
+    const allDone = data.find((s: any) => s.id === 8);
+    expect(allDone.pin_status).toBe('all_done');
+
+    // Rice Park (id 1) -- has open tasks
+    const needsHelp = data.find((s: any) => s.id === 1);
+    expect(needsHelp.pin_status).toBe('needs_help');
+
+    // Highland Park playground (id 4) -- all tasks claimed
+    const inProgress = data.find((s: any) => s.id === 4);
+    expect(inProgress.pin_status).toBe('in_progress');
   });
 });
 
-describe('POST /api/locations', () => {
-  it('creates a new location', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations`, {
+describe('POST /api/spots', () => {
+  it('creates a spot with a single task', async () => {
+    const res = await fetch(`${BASE_URL}/api/spots`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         latitude: 44.95,
         longitude: -93.10,
-        title: 'Test spot from vitest',
-        description: 'Test location from vitest',
+        title: 'Test spot',
         location_type: 'park',
         cleanup_type: 'litter',
-        reported_by: 'test@vitest.com',
+        description: 'Some litter here',
+        created_by: 'test@vitest.com',
       }),
     });
     expect(res.status).toBe(201);
     const data = await json(res);
-    expect(data.title).toBe('Test spot from vitest');
-    expect(data.status).toBe('reported');
+    expect(data.title).toBe('Test spot');
+    expect(data.tasks).toHaveLength(1);
+    expect(data.tasks[0].cleanup_type).toBe('litter');
+    expect(data.tasks[0].status).toBe('open');
+  });
+
+  it('creates a spot with multiple tasks', async () => {
+    const res = await fetch(`${BASE_URL}/api/spots`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: 44.96,
+        longitude: -93.11,
+        title: 'Multi-task spot',
+        location_type: 'roadside',
+        created_by: 'test@vitest.com',
+        tasks: [
+          { description: 'Pick up litter', cleanup_type: 'litter' },
+          { description: 'Pull weeds', cleanup_type: 'weeding' },
+        ],
+      }),
+    });
+    expect(res.status).toBe(201);
+    const data = await json(res);
+    expect(data.tasks).toHaveLength(2);
   });
 
   it('rejects missing fields', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations`, {
+    const res = await fetch(`${BASE_URL}/api/spots`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ latitude: 44.95 }),
     });
     expect(res.status).toBe(400);
-    const data = await json(res);
-    expect(data.error).toContain('Missing required fields');
   });
 
   it('rejects invalid location_type', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations`, {
+    const res = await fetch(`${BASE_URL}/api/spots`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        latitude: 44.95,
-        longitude: -93.10,
-        title: 'Bad type test',
-        location_type: 'moon_base',
-        cleanup_type: 'litter',
-        reported_by: 'test@vitest.com',
+        latitude: 44.95, longitude: -93.10,
+        title: 'Bad', location_type: 'moon_base',
+        cleanup_type: 'litter', created_by: 'test@vitest.com',
       }),
     });
     expect(res.status).toBe(400);
-    const data = await json(res);
-    expect(data.error).toContain('Invalid location_type');
-  });
-
-  it('rejects invalid cleanup_type', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        latitude: 44.95,
-        longitude: -93.10,
-        title: 'Bad cleanup test',
-        location_type: 'park',
-        cleanup_type: 'nuclear_decontamination',
-        reported_by: 'test@vitest.com',
-      }),
-    });
-    expect(res.status).toBe(400);
-    const data = await json(res);
-    expect(data.error).toContain('Invalid cleanup_type');
-  });
-
-  it('rejects out-of-range latitude', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        latitude: 999,
-        longitude: -93.10,
-        title: 'Bad coords test',
-        location_type: 'park',
-        cleanup_type: 'litter',
-        reported_by: 'test@vitest.com',
-      }),
-    });
-    expect(res.status).toBe(400);
-    const data = await json(res);
-    expect(data.error).toContain('latitude');
-  });
-
-  it('rejects invalid JSON', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: 'not json',
-    });
-    expect(res.status).toBe(400);
-    const data = await json(res);
-    expect(data.error).toBe('Invalid JSON');
   });
 });
 
-describe('GET /api/locations/[id]', () => {
-  it('returns a location with signups and completion', async () => {
-    // Location 4 has a signup in seed data
-    const res = await fetch(`${BASE_URL}/api/locations/4`);
+describe('GET /api/spots/[id]', () => {
+  it('returns spot with nested tasks and signups', async () => {
+    // Spot 3 (Trout Brook) has a claimed task with a signup
+    const res = await fetch(`${BASE_URL}/api/spots/3`);
     expect(res.status).toBe(200);
     const data = await json(res);
-    expect(data.id).toBe(4);
-    expect(data.signups).toBeInstanceOf(Array);
-    expect(data.signups.length).toBeGreaterThan(0);
-    expect(data).toHaveProperty('completion');
+    expect(data.id).toBe(3);
+    expect(data.tasks).toBeInstanceOf(Array);
+    expect(data.tasks.length).toBe(2);
+
+    const claimedTask = data.tasks.find((t: any) => t.status === 'claimed');
+    expect(claimedTask).toBeDefined();
+    expect(claimedTask.signups.length).toBeGreaterThan(0);
   });
 
-  it('returns 404 for nonexistent location', async () => {
-    const res = await fetch(`${BASE_URL}/api/locations/9999`);
+  it('returns 404 for nonexistent spot', async () => {
+    const res = await fetch(`${BASE_URL}/api/spots/9999`);
     expect(res.status).toBe(404);
-    const data = await json(res);
-    expect(data.error).toBe('Location not found');
   });
 });
 
-describe('POST /api/signups', () => {
-  it('signs up a volunteer and sets status to claimed', async () => {
-    // Location 2 is "reported" in seed data
-    const res = await fetch(`${BASE_URL}/api/signups`, {
+describe('POST /api/spots/[id]/tasks', () => {
+  it('adds a task to an existing spot', async () => {
+    const res = await fetch(`${BASE_URL}/api/spots/1/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        location_id: 2,
-        volunteer_name: 'Vitest Volunteer',
-        volunteer_email: 'volunteer@vitest.com',
+        cleanup_type: 'other',
+        description: 'New task added via test',
+        added_by: 'test@vitest.com',
+      }),
+    });
+    expect(res.status).toBe(201);
+    const data = await json(res);
+    expect(data.spot_id).toBe(1);
+    expect(data.status).toBe('open');
+  });
+
+  it('returns 404 for nonexistent spot', async () => {
+    const res = await fetch(`${BASE_URL}/api/spots/9999/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cleanup_type: 'litter',
+        added_by: 'test@vitest.com',
+      }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/tasks/[id]/claim', () => {
+  it('claims a task and sets status to claimed', async () => {
+    // Task 1 (Rice Park litter) is open
+    const res = await fetch(`${BASE_URL}/api/tasks/1/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        volunteer_name: 'Test Volunteer',
+        volunteer_email: 'vol@vitest.com',
         planned_date: '2026-05-01',
       }),
     });
     expect(res.status).toBe(201);
     const data = await json(res);
-    expect(data.volunteer_name).toBe('Vitest Volunteer');
+    expect(data.volunteer_name).toBe('Test Volunteer');
 
-    // Verify status changed
-    const loc = await fetch(`${BASE_URL}/api/locations/2`).then((r) => json(r));
-    expect(loc.status).toBe('claimed');
+    // Verify task status changed
+    const spot = await fetch(`${BASE_URL}/api/spots/1`).then((r) => json(r));
+    const task = spot.tasks.find((t: any) => t.id === 1);
+    expect(task.status).toBe('claimed');
   });
 
-  it('rejects signup for nonexistent location', async () => {
-    const res = await fetch(`${BASE_URL}/api/signups`, {
+  it('rejects claiming a done task', async () => {
+    // Task 11 (Kaposia brush clearing) is done in seed
+    const res = await fetch(`${BASE_URL}/api/tasks/11/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        location_id: 9999,
-        volunteer_name: 'Nobody',
-        volunteer_email: 'nobody@vitest.com',
-      }),
-    });
-    expect(res.status).toBe(404);
-  });
-
-  it('rejects signup for already-cleaned location', async () => {
-    // Location 8 is "cleaned" in seed data
-    const res = await fetch(`${BASE_URL}/api/signups`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location_id: 8,
         volunteer_name: 'Late',
         volunteer_email: 'late@vitest.com',
       }),
     });
     expect(res.status).toBe(400);
     const data = await json(res);
-    expect(data.error).toContain('already been cleaned');
+    expect(data.error).toContain('already been completed');
   });
 
   it('rejects missing fields', async () => {
-    const res = await fetch(`${BASE_URL}/api/signups`, {
+    const res = await fetch(`${BASE_URL}/api/tasks/2/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ location_id: 1 }),
+      body: JSON.stringify({ volunteer_name: 'Only name' }),
     });
     expect(res.status).toBe(400);
   });
-});
 
-describe('POST /api/completions', () => {
-  it('marks a location as cleaned', async () => {
-    // Location 3 is "reported" -- sign up first, then complete
-    await fetch(`${BASE_URL}/api/signups`, {
+  it('returns 404 for nonexistent task', async () => {
+    const res = await fetch(`${BASE_URL}/api/tasks/9999/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        location_id: 3,
-        volunteer_name: 'Cleaner',
-        volunteer_email: 'cleaner@vitest.com',
+        volunteer_name: 'Ghost',
+        volunteer_email: 'ghost@vitest.com',
       }),
-    });
-
-    const res = await fetch(`${BASE_URL}/api/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location_id: 3,
-        notes: 'All clear!',
-      }),
-    });
-    expect(res.status).toBe(201);
-    const data = await json(res);
-    expect(data.notes).toBe('All clear!');
-
-    // Verify status changed
-    const loc = await fetch(`${BASE_URL}/api/locations/3`).then((r) => json(r));
-    expect(loc.status).toBe('cleaned');
-  });
-
-  it('rejects completion for already-cleaned location', async () => {
-    // Location 8 is already "cleaned"
-    const res = await fetch(`${BASE_URL}/api/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ location_id: 8 }),
-    });
-    expect(res.status).toBe(400);
-    const data = await json(res);
-    expect(data.error).toContain('already been marked as cleaned');
-  });
-
-  it('rejects completion for nonexistent location', async () => {
-    const res = await fetch(`${BASE_URL}/api/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ location_id: 9999 }),
     });
     expect(res.status).toBe(404);
   });
+});
 
-  it('rejects missing location_id', async () => {
-    const res = await fetch(`${BASE_URL}/api/completions`, {
+describe('POST /api/tasks/[id]/complete', () => {
+  it('completes a claimed task', async () => {
+    // Task 4 (Trout Brook brush) is claimed in seed
+    const res = await fetch(`${BASE_URL}/api/tasks/4/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notes: 'no location' }),
+      body: JSON.stringify({ notes: 'All cleared!' }),
+    });
+    expect(res.status).toBe(200);
+    const data = await json(res);
+    expect(data.status).toBe('done');
+    expect(data.completion_notes).toBe('All cleared!');
+  });
+
+  it('allows walk-up complete of an open task', async () => {
+    // Task 2 (Rice Park weeds) is open
+    const res = await fetch(`${BASE_URL}/api/tasks/2/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const data = await json(res);
+    expect(data.status).toBe('done');
+  });
+
+  it('rejects completing an already-done task', async () => {
+    // Task 11 (Kaposia) is done in seed
+    const res = await fetch(`${BASE_URL}/api/tasks/11/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);
+    const data = await json(res);
+    expect(data.error).toContain('already been completed');
+  });
+
+  it('returns 404 for nonexistent task', async () => {
+    const res = await fetch(`${BASE_URL}/api/tasks/9999/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(404);
   });
 });

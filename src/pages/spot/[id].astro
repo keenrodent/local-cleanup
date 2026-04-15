@@ -1,0 +1,262 @@
+---
+import Base from '../../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+
+const spot = await env.DB.prepare('SELECT * FROM spots WHERE id = ?').bind(id).first() as any;
+
+if (!spot) {
+  return Astro.redirect('/');
+}
+
+const tasksResult = await env.DB.prepare(
+  "SELECT * FROM tasks WHERE spot_id = ? ORDER BY CASE status WHEN 'open' THEN 0 WHEN 'claimed' THEN 1 WHEN 'done' THEN 2 END, added_at ASC"
+).bind(id).all();
+
+// Fetch signups for all tasks
+const taskIds = tasksResult.results.map((t: any) => t.id);
+const signupsByTask: Record<number, any[]> = {};
+
+if (taskIds.length > 0) {
+  const placeholders = taskIds.map(() => '?').join(',');
+  const signupsResult = await env.DB.prepare(
+    `SELECT * FROM signups WHERE task_id IN (${placeholders}) ORDER BY signed_up_at DESC`
+  ).bind(...taskIds).all();
+
+  for (const s of signupsResult.results as any[]) {
+    if (!signupsByTask[s.task_id]) signupsByTask[s.task_id] = [];
+    signupsByTask[s.task_id].push(s);
+  }
+}
+
+// Prepare task data for the template
+const taskList = tasksResult.results.map((t: any) => ({
+  ...t,
+  signups: signupsByTask[t.id] ?? [],
+  statusClass: t.status === 'open' ? 'border-l-error' : t.status === 'claimed' ? 'border-l-warning' : 'border-l-success',
+  statusBadge: t.status === 'open' ? 'badge-error' : t.status === 'claimed' ? 'badge-warning' : 'badge-success',
+  statusLabel: t.status === 'open' ? 'Open' : t.status === 'claimed' ? 'Claimed' : 'Done',
+}));
+
+function formatType(val: string): string {
+  return val.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+}
+
+const openCount = taskList.filter((t: any) => t.status === 'open').length;
+const claimedCount = taskList.filter((t: any) => t.status === 'claimed').length;
+const doneCount = taskList.filter((t: any) => t.status === 'done').length;
+---
+
+<Base title={spot.title}>
+  <div class="max-w-2xl mx-auto p-4">
+    <a href="/" class="btn btn-ghost btn-sm mb-4">&larr; Back to map</a>
+
+    <div class="card bg-base-100 shadow-md">
+      <div class="card-body">
+        <div id="detail-map" class="w-full h-48 rounded-lg mb-4"></div>
+
+        <h1 class="card-title text-lg">{spot.title}</h1>
+
+        <div class="flex flex-wrap gap-2 my-2">
+          <span class="badge badge-outline">{formatType(spot.location_type)}</span>
+          {openCount > 0 && <span class="badge badge-error badge-sm">{openCount} open</span>}
+          {claimedCount > 0 && <span class="badge badge-warning badge-sm">{claimedCount} claimed</span>}
+          {doneCount > 0 && <span class="badge badge-success badge-sm">{doneCount} done</span>}
+        </div>
+
+        <p class="text-sm text-base-content/60">
+          Created {new Date(spot.created_at).toLocaleDateString()}
+        </p>
+
+        <div class="mt-4 space-y-3">
+          <h2 class="font-semibold">Tasks</h2>
+
+          {taskList.map((task: any) => (
+            <div class={`border-l-4 ${task.statusClass} bg-base-200 rounded-r-lg p-3`} data-task-id={task.id}>
+              <div class="flex justify-between items-start gap-2">
+                <div class="flex-1">
+                  <span class="badge badge-outline badge-sm mr-1">{formatType(task.cleanup_type)}</span>
+                  {task.description && <p class="text-sm mt-1">{task.description}</p>}
+                </div>
+                <span class={`badge badge-sm ${task.statusBadge}`}>{task.statusLabel}</span>
+              </div>
+
+              {task.signups.length > 0 && (
+                <div class="mt-2 text-sm text-base-content/70">
+                  {task.signups.map((s: any) => (
+                    <p>
+                      {s.volunteer_name}
+                      {s.planned_date && <span> &middot; planned {new Date(s.planned_date).toLocaleDateString()}</span>}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {task.status === 'done' && task.completed_at && (
+                <div class="mt-2 text-sm text-success">
+                  Completed {new Date(task.completed_at).toLocaleDateString()}
+                  {task.completion_notes && <span> &mdash; {task.completion_notes}</span>}
+                </div>
+              )}
+
+              {task.status !== 'done' && (
+                <div class="mt-2 flex gap-2">
+                  {task.status === 'open' && (
+                    <button class="btn btn-outline btn-xs claim-btn" data-task-id={task.id}>Claim</button>
+                  )}
+                  <button class="btn btn-success btn-xs complete-btn" data-task-id={task.id}>Mark Done</button>
+                </div>
+              )}
+
+              <form class="claim-form hidden mt-2 space-y-2" data-task-id={task.id}>
+                <input type="text" name="volunteer_name" class="input input-bordered input-sm w-full" required placeholder="Your name" />
+                <input type="email" name="volunteer_email" class="input input-bordered input-sm w-full" required placeholder="Your email" />
+                <input type="date" name="planned_date" class="input input-bordered input-sm w-full" />
+                <button type="submit" class="btn btn-primary btn-sm w-full">Confirm Claim</button>
+              </form>
+
+              <form class="complete-form hidden mt-2 space-y-2" data-task-id={task.id}>
+                <textarea name="notes" class="textarea textarea-bordered textarea-sm w-full" rows="2" placeholder="Notes (optional)"></textarea>
+                <button type="submit" class="btn btn-success btn-sm w-full">Confirm Done</button>
+              </form>
+            </div>
+          ))}
+        </div>
+
+        <div class="mt-6 border-t pt-4">
+          <h2 class="font-semibold mb-3">Add a Task</h2>
+          <form id="add-task-form" class="space-y-3">
+            <div class="form-control">
+              <select name="cleanup_type" class="select select-bordered select-sm w-full" required>
+                <option value="" disabled selected>What kind of work?</option>
+                <option value="litter">Litter</option>
+                <option value="leaf_removal">Leaf removal</option>
+                <option value="brush_clearing">Brush clearing</option>
+                <option value="weeding">Weeding</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-control">
+              <textarea name="description" class="textarea textarea-bordered textarea-sm w-full" rows="2" placeholder="What needs doing?"></textarea>
+            </div>
+            <div class="form-control">
+              <input type="email" name="added_by" class="input input-bordered input-sm w-full" required placeholder="Your email" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm w-full">Add Task</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script is:inline define:vars={{ lat: spot.latitude, lng: spot.longitude, spotId: spot.id }}>
+  var map = L.map('detail-map', {
+    zoomControl: false, dragging: false, scrollWheelZoom: false,
+    doubleClickZoom: false, touchZoom: false,
+  }).setView([lat, lng], 16);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap', maxZoom: 19,
+  }).addTo(map);
+
+  L.marker([lat, lng]).addTo(map);
+
+  document.querySelectorAll('.claim-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var taskId = btn.getAttribute('data-task-id');
+      var form = document.querySelector('.claim-form[data-task-id="' + taskId + '"]');
+      if (form) form.classList.toggle('hidden');
+    });
+  });
+
+  document.querySelectorAll('.complete-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var taskId = btn.getAttribute('data-task-id');
+      var form = document.querySelector('.complete-form[data-task-id="' + taskId + '"]');
+      if (form) form.classList.toggle('hidden');
+    });
+  });
+
+  document.querySelectorAll('.claim-form').forEach(function(form) {
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var taskId = form.getAttribute('data-task-id');
+      var formData = new FormData(form);
+      var body = {
+        volunteer_name: formData.get('volunteer_name'),
+        volunteer_email: formData.get('volunteer_email'),
+        planned_date: formData.get('planned_date') || undefined,
+      };
+
+      var res = await fetch('/api/tasks/' + taskId + '/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        var err = await res.json();
+        alert(err.error || 'Something went wrong');
+      }
+    });
+  });
+
+  document.querySelectorAll('.complete-form').forEach(function(form) {
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var taskId = form.getAttribute('data-task-id');
+      var formData = new FormData(form);
+      var body = {
+        notes: formData.get('notes') || undefined,
+      };
+
+      var res = await fetch('/api/tasks/' + taskId + '/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        var err = await res.json();
+        alert(err.error || 'Something went wrong');
+      }
+    });
+  });
+
+  var addTaskForm = document.getElementById('add-task-form');
+  if (addTaskForm) {
+    addTaskForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var formData = new FormData(addTaskForm);
+      var body = {
+        cleanup_type: formData.get('cleanup_type'),
+        description: formData.get('description') || undefined,
+        added_by: formData.get('added_by'),
+      };
+
+      var res = await fetch('/api/spots/' + spotId + '/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        var err = await res.json();
+        alert(err.error || 'Something went wrong');
+      }
+    });
+  }
+</script>

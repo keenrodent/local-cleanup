@@ -4,6 +4,16 @@ import Base from '../layouts/Base.astro';
 
 <Base fillHeight>
   <div id="map-container" class="w-full h-full"></div>
+
+  <!-- Filter toggle -->
+  <div class="fixed top-16 left-3 z-[1000]">
+    <label class="label cursor-pointer gap-2 bg-base-100 rounded-lg shadow px-3 py-1">
+      <input type="checkbox" id="show-completed" class="checkbox checkbox-sm" checked />
+      <span class="label-text text-xs">Show completed</span>
+    </label>
+  </div>
+
+  <!-- Report panel -->
   <div id="report-panel" class="hidden fixed bottom-0 left-0 right-0 bg-base-100 shadow-lg rounded-t-2xl p-6 z-[1000] max-h-[70vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-lg font-bold">Report a Cleanup Spot</h2>
@@ -27,19 +37,6 @@ import Base from '../layouts/Base.astro';
         />
       </div>
 
-      <div class="form-control">
-        <label class="label" for="report-description">
-          <span class="label-text">What needs doing? (optional)</span>
-        </label>
-        <textarea
-          id="report-description"
-          name="description"
-          class="textarea textarea-bordered w-full"
-          rows="3"
-          placeholder="List what you noticed -- litter along the path, weeds in the cracks, branches down, etc."
-        ></textarea>
-      </div>
-
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="form-control">
           <label class="label" for="report-location-type">
@@ -58,7 +55,7 @@ import Base from '../layouts/Base.astro';
 
         <div class="form-control">
           <label class="label" for="report-cleanup-type">
-            <span class="label-text">Cleanup type</span>
+            <span class="label-text">What kind of work?</span>
           </label>
           <select id="report-cleanup-type" name="cleanup_type" class="select select-bordered w-full" required>
             <option value="" disabled selected>Pick one</option>
@@ -72,13 +69,26 @@ import Base from '../layouts/Base.astro';
       </div>
 
       <div class="form-control">
+        <label class="label" for="report-description">
+          <span class="label-text">Details (optional)</span>
+        </label>
+        <textarea
+          id="report-description"
+          name="description"
+          class="textarea textarea-bordered w-full"
+          rows="2"
+          placeholder="What did you notice?"
+        ></textarea>
+      </div>
+
+      <div class="form-control">
         <label class="label" for="report-email">
           <span class="label-text">Your email</span>
         </label>
         <input
           type="email"
           id="report-email"
-          name="reported_by"
+          name="created_by"
           class="input input-bordered w-full"
           required
           placeholder="you@example.com"
@@ -105,14 +115,13 @@ import Base from '../layouts/Base.astro';
     maxZoom: 19,
   }).addTo(map);
 
-  // Fix map size after layout settles (common mobile issue)
   setTimeout(() => map.invalidateSize(), 100);
 
-  function pinColor(status: string): string {
-    switch (status) {
-      case 'reported': return '#ef4444';
-      case 'claimed': return '#eab308';
-      case 'cleaned': return '#22c55e';
+  function pinColor(pinStatus: string): string {
+    switch (pinStatus) {
+      case 'needs_help': return '#ef4444';
+      case 'in_progress': return '#eab308';
+      case 'all_done': return '#22c55e';
       default: return '#6b7280';
     }
   }
@@ -134,35 +143,66 @@ import Base from '../layouts/Base.astro';
     return val.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  async function loadLocations() {
-    const res = await fetch('/api/locations');
-    const locations = await res.json() as any[];
+  // Store markers for filtering
+  let spotMarkers: Array<{ marker: any; pinStatus: string }> = [];
 
-    for (const loc of locations) {
-      const icon = createIcon(pinColor(loc.status));
-      const marker = L.marker([loc.latitude, loc.longitude], { icon }).addTo(map);
+  async function loadSpots() {
+    const res = await fetch('/api/spots');
+    const spots = await res.json() as any[];
 
-      const statusBadge = loc.status === 'reported'
-        ? '<span style="background:#fecaca;color:#991b1b;padding:1px 6px;border-radius:8px;font-size:0.75em;">Reported</span>'
-        : loc.status === 'claimed'
-          ? '<span style="background:#fef08a;color:#854d0e;padding:1px 6px;border-radius:8px;font-size:0.75em;">Claimed</span>'
-          : '<span style="background:#bbf7d0;color:#166534;padding:1px 6px;border-radius:8px;font-size:0.75em;">Cleaned</span>';
+    for (const spot of spots) {
+      const icon = createIcon(pinColor(spot.pin_status));
+      const marker = L.marker([spot.latitude, spot.longitude], { icon }).addTo(map);
+
+      const open = spot.open_count as number;
+      const claimed = spot.claimed_count as number;
+      const done = spot.done_count as number;
+      const parts: string[] = [];
+      if (open > 0) parts.push(`${open} open`);
+      if (claimed > 0) parts.push(`${claimed} claimed`);
+      if (done > 0) parts.push(`${done} done`);
+      const summary = parts.join(', ');
+
+      const statusLabel = spot.pin_status === 'needs_help' ? 'Needs Help'
+        : spot.pin_status === 'in_progress' ? 'In Progress'
+        : spot.pin_status === 'all_done' ? 'All Done'
+        : 'No Tasks';
+
+      const statusColor = spot.pin_status === 'needs_help' ? 'background:#fecaca;color:#991b1b'
+        : spot.pin_status === 'in_progress' ? 'background:#fef08a;color:#854d0e'
+        : spot.pin_status === 'all_done' ? 'background:#bbf7d0;color:#166534'
+        : 'background:#e5e7eb;color:#374151';
 
       marker.bindPopup(`
         <div style="min-width: 180px;">
-          <p style="margin: 0 0 4px; font-weight: 600;">${loc.title}</p>
+          <p style="margin: 0 0 4px; font-weight: 600;">${spot.title}</p>
           <p style="margin: 0 0 4px; font-size: 0.85em; color: #666;">
-            ${formatType(loc.location_type)} &middot; ${formatType(loc.cleanup_type)}
+            ${formatType(spot.location_type)}
           </p>
-          ${statusBadge}
-          <br/><br/>
-          <a href="/location/${loc.id}" style="font-size: 0.85em;">View details &rarr;</a>
+          <span style="${statusColor};padding:1px 6px;border-radius:8px;font-size:0.75em;">${statusLabel}</span>
+          <p style="margin: 4px 0 0; font-size: 0.8em; color: #888;">${summary}</p>
+          <br/>
+          <a href="/spot/${spot.id}" style="font-size: 0.85em;">View tasks &rarr;</a>
         </div>
       `);
+
+      spotMarkers.push({ marker, pinStatus: spot.pin_status });
     }
   }
 
-  loadLocations();
+  loadSpots();
+
+  // Filter toggle
+  const showCompleted = document.getElementById('show-completed') as HTMLInputElement;
+  showCompleted.addEventListener('change', () => {
+    for (const { marker, pinStatus } of spotMarkers) {
+      if (pinStatus === 'all_done' && !showCompleted.checked) {
+        map.removeLayer(marker);
+      } else {
+        marker.addTo(map);
+      }
+    }
+  });
 
   // Click-to-report
   let reportMarker: any = null;
@@ -210,13 +250,13 @@ import Base from '../layouts/Base.astro';
       latitude: parseFloat(formData.get('latitude') as string),
       longitude: parseFloat(formData.get('longitude') as string),
       title: formData.get('title'),
-      description: formData.get('description') || undefined,
       location_type: formData.get('location_type'),
       cleanup_type: formData.get('cleanup_type'),
-      reported_by: formData.get('reported_by'),
+      description: formData.get('description') || undefined,
+      created_by: formData.get('created_by'),
     };
 
-    const res = await fetch('/api/locations', {
+    const res = await fetch('/api/spots', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
