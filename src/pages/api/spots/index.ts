@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 
+export const prerender = false;
+
 const VALID_LOCATION_TYPES = ['roadside', 'park', 'lot', 'playground', 'waterway', 'other'] as const;
 const VALID_CLEANUP_TYPES = ['litter', 'leaf_removal', 'brush_clearing', 'weeding', 'other'] as const;
 
