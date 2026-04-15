@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
+import { MAX_LENGTHS, validateStringLength, validateEmail, jsonError } from '../../../../lib/validation';
 
 export const prerender = false;
 
@@ -12,10 +13,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   try {
     body = await request.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Invalid JSON');
   }
 
   const { description, cleanup_type, added_by } = body as {
@@ -25,26 +23,23 @@ export const POST: APIRoute = async ({ params, request }) => {
   };
 
   if (!cleanup_type || !added_by) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: cleanup_type, added_by' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Missing required fields: cleanup_type, added_by');
   }
 
+  const descErr = validateStringLength(description, 'description', MAX_LENGTHS.description);
+  if (descErr) return jsonError(descErr);
+
+  const emailErr = validateEmail(added_by);
+  if (emailErr) return jsonError(emailErr);
+
   if (!VALID_CLEANUP_TYPES.includes(cleanup_type as typeof VALID_CLEANUP_TYPES[number])) {
-    return new Response(JSON.stringify({ error: `Invalid cleanup_type. Must be one of: ${VALID_CLEANUP_TYPES.join(', ')}` }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError(`Invalid cleanup_type. Must be one of: ${VALID_CLEANUP_TYPES.join(', ')}`);
   }
 
   // Verify spot exists
   const spot = await env.DB.prepare('SELECT id FROM spots WHERE id = ?').bind(id).first();
   if (!spot) {
-    return new Response(JSON.stringify({ error: 'Spot not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Spot not found', 404);
   }
 
   const task = await env.DB.prepare(

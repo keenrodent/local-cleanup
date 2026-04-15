@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
+import { MAX_LENGTHS, validateStringLength, validateEmail, jsonError } from '../../../lib/validation';
 
 export const prerender = false;
 
@@ -59,11 +60,14 @@ export const POST: APIRoute = async ({ request }) => {
   };
 
   if (!latitude || !longitude || !title || !location_type || !created_by) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: latitude, longitude, title, location_type, created_by' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Missing required fields: latitude, longitude, title, location_type, created_by');
   }
+
+  const titleErr = validateStringLength(title, 'title', MAX_LENGTHS.title);
+  if (titleErr) return jsonError(titleErr);
+
+  const emailErr = validateEmail(created_by);
+  if (emailErr) return jsonError(emailErr);
 
   if (!VALID_LOCATION_TYPES.includes(location_type as typeof VALID_LOCATION_TYPES[number])) {
     return new Response(JSON.stringify({ error: `Invalid location_type. Must be one of: ${VALID_LOCATION_TYPES.join(', ')}` }), {
@@ -99,14 +103,13 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  // Validate each task's cleanup_type
+  // Validate each task
   for (const task of taskInputs) {
     if (!task.cleanup_type || !VALID_CLEANUP_TYPES.includes(task.cleanup_type as typeof VALID_CLEANUP_TYPES[number])) {
-      return new Response(JSON.stringify({ error: `Invalid cleanup_type. Must be one of: ${VALID_CLEANUP_TYPES.join(', ')}` }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonError(`Invalid cleanup_type. Must be one of: ${VALID_CLEANUP_TYPES.join(', ')}`);
     }
+    const descErr = validateStringLength(task.description, 'description', MAX_LENGTHS.description);
+    if (descErr) return jsonError(descErr);
   }
 
   // Create spot + tasks atomically

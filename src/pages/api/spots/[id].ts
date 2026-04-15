@@ -7,7 +7,7 @@ export const GET: APIRoute = async ({ params }) => {
   const { id } = params;
 
   const spot = await env.DB.prepare(
-    'SELECT * FROM spots WHERE id = ?'
+    'SELECT id, latitude, longitude, title, location_type, created_at FROM spots WHERE id = ?'
   ).bind(id).first();
 
   if (!spot) {
@@ -18,7 +18,7 @@ export const GET: APIRoute = async ({ params }) => {
   }
 
   const tasks = await env.DB.prepare(
-    'SELECT * FROM tasks WHERE spot_id = ? ORDER BY added_at DESC'
+    'SELECT id, spot_id, description, cleanup_type, status, added_at, completed_at, completion_notes FROM tasks WHERE spot_id = ? ORDER BY added_at DESC'
   ).bind(id).all();
 
   // Fetch signups for all tasks in this spot
@@ -28,7 +28,7 @@ export const GET: APIRoute = async ({ params }) => {
   if (taskIds.length > 0) {
     const placeholders = taskIds.map(() => '?').join(',');
     const signups = await env.DB.prepare(
-      `SELECT * FROM signups WHERE task_id IN (${placeholders}) ORDER BY signed_up_at DESC`
+      `SELECT id, task_id, volunteer_name, signed_up_at, planned_date FROM signups WHERE task_id IN (${placeholders}) ORDER BY signed_up_at DESC`
     ).bind(...taskIds).all();
 
     for (const s of signups.results as Record<string, unknown>[]) {

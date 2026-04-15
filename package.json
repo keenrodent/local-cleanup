@@ -1,7 +1,13 @@
 {
   "name": "local-cleanup",
+  "description": "Volunteer coordination app for neighborhood cleanup",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keenrodent/local-cleanup"
+  },
   "engines": {
     "node": ">=22.12.0"
   },

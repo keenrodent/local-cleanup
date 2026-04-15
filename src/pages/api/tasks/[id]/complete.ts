@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
+import { MAX_LENGTHS, validateStringLength, jsonError } from '../../../../lib/validation';
 
 export const prerender = false;
 
@@ -15,22 +16,19 @@ export const POST: APIRoute = async ({ params, request }) => {
 
   const { notes } = body as { notes?: string };
 
+  const notesErr = validateStringLength(notes, 'notes', MAX_LENGTHS.notes);
+  if (notesErr) return jsonError(notesErr);
+
   const task = await env.DB.prepare(
     'SELECT id, status FROM tasks WHERE id = ?'
   ).bind(id).first();
 
   if (!task) {
-    return new Response(JSON.stringify({ error: 'Task not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Task not found', 404);
   }
 
   if (task.status === 'done') {
-    return new Response(JSON.stringify({ error: 'This task has already been completed' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('This task has already been completed');
   }
 
   // Walk-up complete: accept open or claimed tasks

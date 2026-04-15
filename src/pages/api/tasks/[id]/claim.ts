@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
+import { MAX_LENGTHS, validateStringLength, validateEmail, jsonError } from '../../../../lib/validation';
 
 export const prerender = false;
 
@@ -10,10 +11,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   try {
     body = await request.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Invalid JSON');
   }
 
   const { volunteer_name, volunteer_email, planned_date } = body as {
@@ -23,28 +21,25 @@ export const POST: APIRoute = async ({ params, request }) => {
   };
 
   if (!volunteer_name || !volunteer_email) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: volunteer_name, volunteer_email' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Missing required fields: volunteer_name, volunteer_email');
   }
+
+  const nameErr = validateStringLength(volunteer_name, 'volunteer_name', MAX_LENGTHS.name);
+  if (nameErr) return jsonError(nameErr);
+
+  const emailErr = validateEmail(volunteer_email);
+  if (emailErr) return jsonError(emailErr);
 
   const task = await env.DB.prepare(
     'SELECT id, status FROM tasks WHERE id = ?'
   ).bind(id).first();
 
   if (!task) {
-    return new Response(JSON.stringify({ error: 'Task not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('Task not found', 404);
   }
 
   if (task.status === 'done') {
-    return new Response(JSON.stringify({ error: 'This task has already been completed' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonError('This task has already been completed');
   }
 
   const signup = await env.DB.prepare(
