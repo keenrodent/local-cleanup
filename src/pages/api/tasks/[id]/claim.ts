@@ -47,7 +47,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   ).bind(id, volunteer_name, volunteer_email, planned_date ?? null).first();
 
   await env.DB.prepare(
-    "UPDATE tasks SET status = 'claimed' WHERE id = ?"
+    "UPDATE tasks SET status = 'claimed', claimed_at = datetime('now') WHERE id = ?"
   ).bind(id).run();
 
   return new Response(JSON.stringify(signup), {

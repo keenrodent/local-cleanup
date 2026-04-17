@@ -8,6 +8,11 @@ const VALID_LOCATION_TYPES = ['roadside', 'park', 'lot', 'playground', 'waterway
 const VALID_CLEANUP_TYPES = ['litter', 'leaf_removal', 'brush_clearing', 'weeding', 'other'] as const;
 
 export const GET: APIRoute = async () => {
+  // Expire stale claims (older than 14 days)
+  await env.DB.prepare(
+    "UPDATE tasks SET status = 'open', claimed_at = NULL WHERE status = 'claimed' AND claimed_at IS NOT NULL AND claimed_at < datetime('now', '-14 days')"
+  ).run();
+
   const results = await env.DB.prepare(`
     SELECT s.*,
       COUNT(t.id) as task_count,

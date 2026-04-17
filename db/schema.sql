@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'claimed', 'done')),
   added_by TEXT NOT NULL,
   added_at TEXT NOT NULL DEFAULT (datetime('now')),
+  claimed_at TEXT,
   completed_at TEXT,
   completion_notes TEXT
 );
