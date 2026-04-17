@@ -58,7 +58,10 @@ const doneCount = taskList.filter((t: any) => t.status === 'done').length;
 
 <Base title={spot.title}>
   <div class="max-w-2xl mx-auto p-4">
-    <a href="/" class="btn btn-ghost btn-sm mb-4">&larr; Back to map</a>
+    <div class="flex justify-between items-center mb-4">
+      <a href="/" class="btn btn-ghost btn-sm">&larr; Back to map</a>
+      <button id="trip-toggle-detail" class="btn btn-outline btn-sm" data-spot-id={spot.id}>+ Add to trip</button>
+    </div>
 
     <div class="card bg-base-100 shadow-md">
       <div class="card-body">
@@ -204,6 +207,28 @@ const doneCount = taskList.filter((t: any) => t.status === 'done').length;
 <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script is:inline define:vars={{ lat: spot.latitude, lng: spot.longitude, spotId: spot.id }}>
+  // Trip toggle on detail page
+  var tripBtn = document.getElementById('trip-toggle-detail');
+  function getTrip() {
+    try { return JSON.parse(localStorage.getItem('cleanup-trip') || '[]'); }
+    catch { return []; }
+  }
+  function updateTripBtn() {
+    var ids = getTrip();
+    var inTrip = ids.indexOf(spotId) >= 0;
+    tripBtn.textContent = inTrip ? '✕ Remove from trip' : '+ Add to trip';
+    tripBtn.className = inTrip ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+  }
+  updateTripBtn();
+  tripBtn.addEventListener('click', function() {
+    var ids = getTrip();
+    var idx = ids.indexOf(spotId);
+    if (idx >= 0) ids.splice(idx, 1);
+    else ids.push(spotId);
+    localStorage.setItem('cleanup-trip', JSON.stringify(ids));
+    updateTripBtn();
+  });
+
   var map = L.map('detail-map', {
     zoomControl: false, dragging: false, scrollWheelZoom: false,
     doubleClickZoom: false, touchZoom: false,

@@ -14,6 +14,12 @@ import Base from '../layouts/Base.astro';
       </svg>
       Near me
     </button>
+    <a id="trip-badge" href="/trip" class="btn btn-sm bg-base-100 shadow hidden">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5h6" />
+      </svg>
+      My trip (<span id="trip-count">0</span>)
+    </a>
     <label class="label cursor-pointer gap-2 bg-base-100 rounded-lg shadow px-3 py-1">
       <input type="checkbox" id="show-completed" class="checkbox checkbox-sm" checked />
       <span class="label-text text-xs">Show completed</span>
@@ -157,6 +163,43 @@ import Base from '../layouts/Base.astro';
     return div.innerHTML;
   }
 
+  // Trip management (localStorage)
+  function getTrip(): number[] {
+    try { return JSON.parse(localStorage.getItem('cleanup-trip') || '[]'); }
+    catch { return []; }
+  }
+  function saveTrip(ids: number[]) {
+    localStorage.setItem('cleanup-trip', JSON.stringify(ids));
+    updateTripBadge();
+  }
+  function toggleTrip(spotId: number) {
+    const ids = getTrip();
+    const idx = ids.indexOf(spotId);
+    if (idx >= 0) ids.splice(idx, 1);
+    else ids.push(spotId);
+    saveTrip(ids);
+  }
+  function updateTripBadge() {
+    const ids = getTrip();
+    const badge = document.getElementById('trip-badge')!;
+    const count = document.getElementById('trip-count')!;
+    count.textContent = String(ids.length);
+    badge.classList.toggle('hidden', ids.length === 0);
+  }
+  const tripIds = new Set(getTrip());
+  updateTripBadge();
+
+  // Listen for trip toggle clicks in popups
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('trip-toggle')) {
+      const spotId = Number(target.dataset.spotId);
+      toggleTrip(spotId);
+      const inTrip = getTrip().includes(spotId);
+      target.innerHTML = inTrip ? '&#x2715; Remove' : '+ Trip';
+    }
+  });
+
   // Store markers for filtering
   let spotMarkers: Array<{ marker: any; pinStatus: string }> = [];
 
@@ -201,6 +244,7 @@ import Base from '../layouts/Base.astro';
           <p style="margin: 4px 0 0; font-size: 0.8em; color: #888;">${summary}</p>
           <br/>
           <a href="/spot/${spot.id}" style="font-size: 0.85em;">View tasks &rarr;</a>
+          <span style="margin-left: 8px; font-size: 0.85em; cursor: pointer; color: #3b82f6;" class="trip-toggle" data-spot-id="${spot.id}">${tripIds.has(spot.id) ? '&#x2715; Remove' : '+ Trip'}</span>
         </div>
       `);
 
