@@ -41,9 +41,14 @@ export const GET: APIRoute = async ({ params }) => {
     signups: signupsByTask[t.id as number] ?? [],
   }));
 
+  const notes = await env.DB.prepare(
+    'SELECT id, note, added_at FROM spot_notes WHERE spot_id = ? ORDER BY added_at DESC'
+  ).bind(id).all();
+
   return new Response(JSON.stringify({
     ...spot,
     tasks: tasksWithSignups,
+    notes: notes.results,
   }), {
     headers: { 'Content-Type': 'application/json' },
   });
