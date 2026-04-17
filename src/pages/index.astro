@@ -266,18 +266,20 @@ import Base from '../layouts/Base.astro';
     }
   });
 
-  // Geolocation
+  // Geolocation (toggle tracking)
   let locationMarker: any = null;
+  let watchId: number | null = null;
   const locateBtn = document.getElementById('locate-me')!;
-  locateBtn.addEventListener('click', () => {
+
+  function startTracking() {
     if (!navigator.geolocation) {
       showToast('Geolocation is not supported by your browser', 'error');
       return;
     }
-    navigator.geolocation.getCurrentPosition(
+    watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        map.setView([latitude, longitude], 16);
+        map.setView([latitude, longitude], Math.max(map.getZoom(), 15));
         if (locationMarker) {
           locationMarker.setLatLng([latitude, longitude]);
         } else {
@@ -289,9 +291,33 @@ import Base from '../layouts/Base.astro';
       },
       () => {
         showToast('Unable to get your location. Check your browser permissions.', 'error');
+        stopTracking();
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+    locateBtn.classList.add('btn-primary');
+    locateBtn.classList.remove('bg-base-100');
+  }
+
+  function stopTracking() {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+    if (locationMarker) {
+      map.removeLayer(locationMarker);
+      locationMarker = null;
+    }
+    locateBtn.classList.remove('btn-primary');
+    locateBtn.classList.add('bg-base-100');
+  }
+
+  locateBtn.addEventListener('click', () => {
+    if (watchId !== null) {
+      stopTracking();
+    } else {
+      startTracking();
+    }
   });
 
   // Click-to-report
