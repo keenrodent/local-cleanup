@@ -1,0 +1,98 @@
+---
+import Base from '../layouts/Base.astro';
+import { CITY_NAME } from 'astro:env/client';
+---
+
+<Base title="Privacy">
+  <div class="max-w-2xl mx-auto p-4">
+    <a href="/" class="btn btn-ghost btn-sm mb-4">&larr; Back to map</a>
+
+    <div class="prose max-w-none">
+      <h1>Privacy</h1>
+
+      <p>
+        {CITY_NAME} Cleanup Spots is a volunteer coordination tool. This page
+        explains what data we collect, what we do with it, and what we don't do.
+      </p>
+
+      <h2>What we collect</h2>
+
+      <p><strong>Email addresses</strong> are collected when you:</p>
+      <ul>
+        <li>Report a new spot</li>
+        <li>Add a task to a spot</li>
+        <li>Claim a task</li>
+        <li>Add a note to a spot</li>
+      </ul>
+      <p>
+        Emails are stored in our database but <strong>never displayed publicly</strong>.
+        They are not visible on the map, in spot details, or in any API response.
+        Only the site administrator can see them via direct database access.
+      </p>
+      <p>
+        We do not send emails. We do not share email addresses with anyone.
+        We do not use them for marketing or newsletters.
+      </p>
+
+      <h2>Volunteer names</h2>
+      <p>
+        When you claim a task, your name is displayed on the spot detail page
+        so other volunteers can see who's working on it. This is visible to
+        anyone who views the spot.
+      </p>
+
+      <h2>Location data</h2>
+      <p>
+        The "Near me" feature uses your browser's geolocation to center the map
+        on your position. This data <strong>never leaves your browser</strong>.
+        It is not sent to our server, not stored in our database, and not shared
+        with anyone. Your browser will ask for permission before sharing your
+        location.
+      </p>
+
+      <h2>Trip planning</h2>
+      <p>
+        When you add spots to your trip, the list is stored in your browser's
+        local storage. This data stays on your device. It is not sent to our
+        server. Clearing your browser data will remove it.
+      </p>
+
+      <h2>Map tiles</h2>
+      <p>
+        The map uses tiles from <a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>.
+        When you view the map, your browser makes requests to OpenStreetMap's
+        servers, which means they can see your IP address. This is standard for
+        any website that displays a map. See
+        <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener noreferrer">OpenStreetMap's privacy policy</a>.
+      </p>
+
+      <h2>What we don't do</h2>
+      <ul>
+        <li>No cookies</li>
+        <li>No analytics or tracking scripts</li>
+        <li>No advertising</li>
+        <li>No data sharing with third parties</li>
+        <li>No user accounts or passwords</li>
+      </ul>
+
+      <h2>Data retention</h2>
+      <p>
+        Spot, task, and volunteer data is stored indefinitely. There is currently
+        no self-service way to delete your data. If you want your information
+        removed, contact the site administrator.
+      </p>
+
+      <h2>Open source</h2>
+      <p>
+        This app is <a href="https://github.com/keenrodent/local-cleanup" target="_blank" rel="noopener noreferrer">open source</a>
+        under the MIT license. You can read every line of code that handles
+        your data.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about privacy? Email <a href="mailto:k@knrhds.com">k@knrhds.com</a>.
+      </p>
+    </div>
+  </div>
+</Base>
