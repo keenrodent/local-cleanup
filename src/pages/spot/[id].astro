@@ -6,9 +6,9 @@ export const prerender = false;
 
 const { id } = Astro.params;
 
-const spot = await env.DB.prepare('SELECT id, latitude, longitude, title, location_type, created_at FROM spots WHERE id = ?').bind(id).first() as any;
+const spot = await env.DB.prepare('SELECT id, latitude, longitude, title, location_type, created_at, hidden FROM spots WHERE id = ?').bind(id).first() as any;
 
-if (!spot) {
+if (!spot || spot.hidden) {
   return Astro.redirect('/');
 }
 

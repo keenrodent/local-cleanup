@@ -1,0 +1,90 @@
+---
+import Base from '../layouts/Base.astro';
+import { env } from 'cloudflare:workers';
+import { ADMIN_TOKEN } from 'astro:env/server';
+
+export const prerender = false;
+
+const url = new URL(Astro.request.url);
+const token = url.searchParams.get('token');
+
+if (!token || token !== ADMIN_TOKEN) {
+  return new Response('Unauthorized', { status: 401 });
+}
+
+// Fetch all spots including hidden, with task counts
+const results = await env.DB.prepare(`
+  SELECT s.*,
+    COUNT(t.id) as task_count,
+    SUM(CASE WHEN t.status = 'open' THEN 1 ELSE 0 END) as open_count,
+    SUM(CASE WHEN t.status = 'claimed' THEN 1 ELSE 0 END) as claimed_count,
+    SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) as done_count
+  FROM spots s
+  LEFT JOIN tasks t ON t.spot_id = s.id
+  GROUP BY s.id
+  ORDER BY s.created_at DESC
+`).all();
+
+const spots = results.results as any[];
+---
+
+<Base title="Admin">
+  <div class="max-w-3xl mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4">Admin</h1>
+    <p class="text-sm text-base-content/60 mb-6">{spots.length} spots total</p>
+
+    <div class="space-y-3">
+      {spots.map((spot: any) => (
+        <div class={`card bg-base-100 shadow-sm border ${spot.hidden ? 'opacity-50 border-error' : 'border-base-300'}`}>
+          <div class="card-body py-3 px-4">
+            <div class="flex justify-between items-center gap-4">
+              <div class="flex-1 min-w-0">
+                <h2 class="font-semibold truncate">{spot.title}</h2>
+                <p class="text-xs text-base-content/60">
+                  {spot.location_type} &middot;
+                  {spot.open_count} open, {spot.claimed_count} claimed, {spot.done_count} done
+                  &middot; Created {new Date(spot.created_at).toLocaleDateString()}
+                  {spot.hidden ? ' · HIDDEN' : ''}
+                </p>
+              </div>
+              <div class="flex gap-2 flex-shrink-0">
+                <a href={`/spot/${spot.id}`} class="btn btn-ghost btn-xs">View</a>
+                {spot.hidden ? (
+                  <button class="btn btn-success btn-xs admin-action" data-spot-id={spot.id} data-action="restore">Restore</button>
+                ) : (
+                  <button class="btn btn-error btn-xs admin-action" data-spot-id={spot.id} data-action="hide">Hide</button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</Base>
+
+<script is:inline define:vars={{ adminToken: ADMIN_TOKEN }}>
+  document.querySelectorAll('.admin-action').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      var spotId = btn.getAttribute('data-spot-id');
+      var action = btn.getAttribute('data-action');
+      var hidden = action === 'hide';
+
+      var res = await fetch('/api/spots/' + spotId, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + adminToken,
+        },
+        body: JSON.stringify({ hidden: hidden }),
+      });
+
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        var err = await res.json();
+        window.showToast(err.error || 'Something went wrong', 'error');
+      }
+    });
+  });
+</script>

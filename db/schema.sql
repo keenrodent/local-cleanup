@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS spots (
   title TEXT NOT NULL,
   location_type TEXT NOT NULL CHECK (location_type IN ('roadside', 'park', 'lot', 'playground', 'waterway', 'other')),
   created_by TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  hidden INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_spots_created_at ON spots (created_at);

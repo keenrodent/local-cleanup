@@ -15,6 +15,7 @@ export default defineConfig({
       MAP_CENTER_LAT: envField.number({ context: 'client', access: 'public', default: 44.9537 }),
       MAP_CENTER_LNG: envField.number({ context: 'client', access: 'public', default: -93.0900 }),
       MAP_ZOOM: envField.number({ context: 'client', access: 'public', default: 13 }),
+      ADMIN_TOKEN: envField.string({ context: 'server', access: 'secret' }),
     },
   },
 
